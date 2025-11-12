@@ -13,19 +13,21 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private PlayerSlot[] players;
     [SerializeField] private string startingPlayerName = "Thomas";
-    [SerializeField] private string key1PlayerName = "Clair";
+    [SerializeField] private string key1PlayerName = "Claire";
     [SerializeField] private string key2PlayerName = "Thomas";
     [SerializeField] private string key3PlayerName = "John";
 
     private readonly Dictionary<string, PlayerController> playerLookup = new();
     private PlayerController activePlayer;
+    public PlayerController ActivePlayer => activePlayer;
+    public Transform ActivePlayerTransform => activePlayer != null ? activePlayer.transform : null;
 
 #if UNITY_EDITOR
     private void Reset()
     {
         players = new PlayerSlot[]
         {
-            new PlayerSlot { playerName = "Clair" },
+            new PlayerSlot { playerName = "Claire" },
             new PlayerSlot { playerName = "Thomas" },
             new PlayerSlot { playerName = "John" }
         };
@@ -170,7 +172,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        foreach (var controller in FindObjectsOfType<PlayerController>())
+        foreach (var controller in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
         {
             if (controller.name == playerName)
             {
@@ -183,7 +185,7 @@ public class GameManager : MonoBehaviour
 
     private void RegisterScenePlayers()
     {
-        foreach (var controller in FindObjectsOfType<PlayerController>())
+        foreach (var controller in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
         {
             var name = controller.gameObject.name;
 
