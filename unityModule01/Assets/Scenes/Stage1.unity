@@ -269,7 +269,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fbdb916544c2d9c4ca23145c2d92e953, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraController
-  gameManager: {fileID: 0}
+  gameManager: {fileID: 472073139}
   followSpeed: 5
   xOffset: 0
   snapOnStart: 1
@@ -574,12 +574,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbaa634054a521848a3087cf5ba25827, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 30
-  jumpForce: 8
+  moveSpeed: 9
+  jumpForce: 5
   doubleJump: 0
   maxTiltDegrees: 10
   horizontalSpeedCap: 15
-  tiltTarget: {fileID: 0}
 --- !u!54 &590629302
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -640,12 +639,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbaa634054a521848a3087cf5ba25827, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 30
+  moveSpeed: 18
   jumpForce: 8
   doubleJump: 0
   maxTiltDegrees: 10
   horizontalSpeedCap: 15
-  tiltTarget: {fileID: 0}
 --- !u!54 &709814439
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -847,12 +845,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbaa634054a521848a3087cf5ba25827, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 20
+  moveSpeed: 13
   jumpForce: 6
-  doubleJump: 1
+  doubleJump: 0
   maxTiltDegrees: 10
   horizontalSpeedCap: 10
-  tiltTarget: {fileID: 0}
 --- !u!54 &1007479946
 Rigidbody:
   m_ObjectHideFlags: 0
