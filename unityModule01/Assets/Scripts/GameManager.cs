@@ -1,9 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
+using UnityEngine.SceneManagement;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager Instance { get; private set; }
     [System.Serializable]
     private class PlayerSlot
     {
@@ -17,8 +21,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string key2PlayerName = "Thomas";
     [SerializeField] private string key3PlayerName = "John";
     [SerializeField] private bool[] shapesInGoal = new bool[3];
-    [SerializeField] private GameObject levelCompleteLabel;
+    [SerializeField] private TMPro.TextMeshProUGUI headlineText;
     [SerializeField] private GameObject[] shapeGoalLabels = new GameObject[3];
+    [SerializeField] private LayerMask selectableLayers = ~0;
 
     public enum ShapeId
     {
@@ -51,6 +56,13 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
         playerLookup.Clear();
 
         if (players == null || players.Length == 0)
@@ -68,11 +80,20 @@ public class GameManager : MonoBehaviour
         RegisterScenePlayers();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
     private void Start()
     {
         SetActivePlayer(startingPlayerName);
-        UpdateLevelCompleteIndicator();
         RefreshShapeIndicators();
+        ShowStageHeadlineForScene();
+        UpdateLevelCompleteIndicator();
     }
 
     private void Update()
@@ -83,23 +104,63 @@ public class GameManager : MonoBehaviour
 
     private void HandlePlayerSelectionInput()
     {
-        if (Keyboard.current == null)
+        var keyboard = Keyboard.current;
+        if (keyboard != null)
+        {
+            if (WasPressed(keyboard.digit1Key, keyboard.numpad1Key))
+            {
+                SetActivePlayer(key1PlayerName);
+            }
+            else if (WasPressed(keyboard.digit2Key, keyboard.numpad2Key))
+            {
+                SetActivePlayer(key2PlayerName);
+            }
+            else if (WasPressed(keyboard.digit3Key, keyboard.numpad3Key))
+            {
+                SetActivePlayer(key3PlayerName);
+            }
+
+            if (keyboard.rKey.wasPressedThisFrame)
+            {
+                ReloadActiveScene();
+            }
+        }
+
+        var mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+        {
+            TrySelectPlayerWithMouse(mouse.position.ReadValue());
+        }
+    }
+
+    private void TrySelectPlayerWithMouse(Vector2 screenPosition)
+    {
+        var mainCamera = Camera.main;
+        if (mainCamera == null)
         {
             return;
         }
 
-        if (Keyboard.current.digit1Key.wasPressedThisFrame)
+        var ray = mainCamera.ScreenPointToRay(screenPosition);
+        if (!Physics.Raycast(ray, out var hitInfo, Mathf.Infinity, selectableLayers))
         {
-            SetActivePlayer(key1PlayerName);
+            return;
         }
-        else if (Keyboard.current.digit2Key.wasPressedThisFrame)
+
+        var controller = hitInfo.collider.GetComponentInParent<PlayerController>();
+        if (controller == null)
         {
-            SetActivePlayer(key2PlayerName);
+            return;
         }
-        else if (Keyboard.current.digit3Key.wasPressedThisFrame)
-        {
-            SetActivePlayer(key3PlayerName);
-        }
+
+        SetActivePlayer(controller.gameObject.name);
+    }
+
+    private static bool WasPressed(ButtonControl primary, ButtonControl secondary)
+    {
+        var primaryPressed = primary != null && primary.wasPressedThisFrame;
+        var secondaryPressed = secondary != null && secondary.wasPressedThisFrame;
+        return primaryPressed || secondaryPressed;
     }
 
     private float goalReportTimer;
@@ -189,7 +250,7 @@ public class GameManager : MonoBehaviour
         }
 
         shapesInGoal[index] = inGoal;
-        UpdateShapeIndicator(shape);
+        UpdateShapeIndicator(shape, inGoal);
         UpdateLevelCompleteIndicator();
     }
 
@@ -205,32 +266,9 @@ public class GameManager : MonoBehaviour
         return shapesInGoal[index];
     }
 
-    private void RefreshShapeIndicators()
+    private void UpdateLevelCompleteIndicator() // check if all are in and turn on or off ui text
     {
-        for (int i = 0; i < shapesInGoal.Length; i++)
-        {
-            UpdateShapeIndicator((ShapeId)i);
-        }
-    }
-
-    private void UpdateShapeIndicator(ShapeId shape)
-    {
-        var index = (int)shape;
-        if (index < 0 || index >= shapeGoalLabels.Length)
-        {
-            return;
-        }
-
-        var label = shapeGoalLabels[index];
-        if (label != null)
-        {
-            label.SetActive(shapesInGoal[index]);
-        }
-    }
-
-    private void UpdateLevelCompleteIndicator()
-    {
-        if (levelCompleteLabel == null)
+        if (headlineText == null)
         {
             return;
         }
@@ -245,7 +283,137 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        levelCompleteLabel.SetActive(allInGoal);
+        if (allInGoal)
+        {
+            headlineLocked = false;
+            headlineText.text = stageCompleteMessage;
+            headlineText.gameObject.SetActive(true);
+            CancelInvoke(nameof(LoadNextStage));
+            if (!string.IsNullOrEmpty(nextStageName))
+            {
+                Invoke(nameof(LoadNextStage), 4f);
+            }
+        }
+        else if (!headlineLocked)
+        {
+            headlineText.gameObject.SetActive(false);
+            CancelInvoke(nameof(LoadNextStage));
+        }
+    }
+
+    private void ShowStageHeadline(string message, float duration)
+    {
+        if (headlineText == null)
+        {
+            return;
+        }
+
+        headlineLocked = true;
+        headlineText.text = message;
+        headlineText.gameObject.SetActive(true);
+        CancelInvoke(nameof(HideHeadline));
+        if (duration > 0f)
+        {
+            Invoke(nameof(HideHeadline), duration);
+        }
+    }
+
+    private void HideHeadline()
+    {
+        headlineLocked = false;
+        if (headlineText != null && !AllShapesInGoal())
+        {
+            headlineText.gameObject.SetActive(false);
+        }
+    }
+
+    private bool AllShapesInGoal()
+    {
+        for (int i = 0; i < shapesInGoal.Length; i++)
+        {
+            if (!shapesInGoal[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool headlineLocked;
+    private string nextStageName;
+    private string stageCompleteMessage = "Level Complete!";
+
+    private void LoadNextStage()
+    {
+        if (string.IsNullOrEmpty(nextStageName))
+        {
+            return;
+        }
+
+        SceneManager.LoadScene(nextStageName);
+    }
+
+    private void ShowStageHeadlineForScene()
+    {
+        var scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid())
+        {
+            return;
+        }
+
+        stageCompleteMessage = "Level Complete!";
+        nextStageName = null;
+
+        string message = null;
+        switch (scene.name)
+        {
+            case "Stage2":
+                message = "Stage 2";
+                stageCompleteMessage = "You Win!";
+                break;
+            case "Stage1":
+                message = "Stage 1";
+                nextStageName = "Stage2";
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(message))
+        {
+            ShowStageHeadline(message, 5f);
+        }
+    }
+
+    public void ReloadActiveScene()
+    {
+        var scene = SceneManager.GetActiveScene();
+        if (scene.IsValid())
+        {
+            SceneManager.LoadScene(scene.name);
+        }
+    }
+
+    private void RefreshShapeIndicators()
+    {
+        for (int i = 0; i < shapesInGoal.Length; i++)
+        {
+            UpdateShapeIndicator((ShapeId)i, shapesInGoal[i]);
+        }
+    }
+
+    private void UpdateShapeIndicator(ShapeId shape, bool inGoal)
+    {
+        var index = (int)shape;
+        if (index < 0 || index >= shapeGoalLabels.Length)
+        {
+            return;
+        }
+
+        var label = shapeGoalLabels[index];
+        if (label != null)
+        {
+            label.SetActive(inGoal);
+        }
     }
 
     private PlayerController ResolvePlayer(string playerName)

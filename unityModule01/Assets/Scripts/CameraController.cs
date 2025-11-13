@@ -2,10 +2,11 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    [SerializeField] private GameManager gameManager;
+    private GameManager gameManager;
     [SerializeField] private float followSpeed = 5f; //interpolate
     [SerializeField] private float xOffset = 0f;
     [SerializeField] private float yOffset = 0f;
+    [SerializeField] private float minYPosition = 0f;
     [SerializeField] private bool snapOnStart = true;
 
     private Transform currentTarget;
@@ -14,7 +15,7 @@ public class CameraController : MonoBehaviour
     {
         if (gameManager == null)
         {
-            gameManager = FindFirstObjectByType<GameManager>();
+            gameManager = GameManager.Instance;
         }
 
         currentTarget = ResolveActiveTarget();
@@ -38,9 +39,10 @@ public class CameraController : MonoBehaviour
 
     private Transform GetTarget()
     {
-        if (gameManager != null && gameManager.ActivePlayerTransform != null)
+        var instance = GameManager.Instance;
+        if (instance != null && instance.ActivePlayerTransform != null)
         {
-            return gameManager.ActivePlayerTransform;
+            return instance.ActivePlayerTransform;
         }
 
         if (currentTarget != null && currentTarget.gameObject.activeInHierarchy)
@@ -58,9 +60,10 @@ public class CameraController : MonoBehaviour
 
     private Transform ResolveActiveTarget()
     {
-        if (gameManager != null && gameManager.ActivePlayerTransform != null)
+        var instance = GameManager.Instance;
+        if (instance != null && instance.ActivePlayerTransform != null)
         {
-            return gameManager.ActivePlayerTransform;
+            return instance.ActivePlayerTransform;
         }
 
         foreach (var controller in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
@@ -81,7 +84,7 @@ public class CameraController : MonoBehaviour
         var desiredY = currentTarget.position.y + yOffset;
         var t = followSpeed * Time.deltaTime;
         position.x = Mathf.Lerp(position.x, desiredX, t);
-        position.y = Mathf.Lerp(position.y, desiredY, t);
+        position.y = Mathf.Max(minYPosition, Mathf.Lerp(position.y, desiredY, t));
         transform.position = position;
     }
 
@@ -89,7 +92,7 @@ public class CameraController : MonoBehaviour
     {
         var position = transform.position;
         position.x = currentTarget.position.x + xOffset;
-        position.y = currentTarget.position.y + yOffset;
+        position.y = Mathf.Max(minYPosition, currentTarget.position.y + yOffset);
         transform.position = position;
     }
 

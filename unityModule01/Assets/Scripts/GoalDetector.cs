@@ -3,7 +3,6 @@ using UnityEngine;
 public class GoalDetector : MonoBehaviour
 {
     [SerializeField] private GameManager.ShapeId targetShape = GameManager.ShapeId.Claire;
-    [SerializeField] private GameManager gameManager;
     [SerializeField] private float tolerance = 0.3f;
     [SerializeField] private Transform targetTransform;
 
@@ -12,22 +11,18 @@ public class GoalDetector : MonoBehaviour
 
     private void Awake()
     {
-        if (gameManager == null)
-        {
-            gameManager = FindFirstObjectByType<GameManager>();
-        }
-
         TryResolveTargetTransform();
     }
 
     private void Update()
     {
-        if (gameManager == null)
+        if (!TryResolveTargetTransform())
         {
             return;
         }
 
-        if (!TryResolveTargetTransform())
+        var manager = GameManager.Instance;
+        if (manager == null)
         {
             return;
         }
@@ -37,9 +32,11 @@ public class GoalDetector : MonoBehaviour
         {
             lastReportedState = inside;
             hasReportedState = true;
-            gameManager.SetShapeInGoal(targetShape, inside);
+            manager.SetShapeInGoal(targetShape, inside);
         }
     }
+
+    private bool missingTargetLogged;
 
     private bool TryResolveTargetTransform()
     {
@@ -61,6 +58,12 @@ public class GoalDetector : MonoBehaviour
         var targetObject = GameObject.Find(desiredName);
         if (targetObject == null)
         {
+            if (!missingTargetLogged)
+            {
+                Debug.LogWarning($"GoalDetector on {name} could not find a target named {desiredName}.");
+                missingTargetLogged = true;
+            }
+
             return false;
         }
 
@@ -74,11 +77,17 @@ public class GoalDetector : MonoBehaviour
         // Fall back to the found transform, but log so duplicates can be spotted.
         Debug.LogWarning($"GoalDetector on {name} is using object '{targetObject.name}' without a PlayerController. Consider assigning the transform explicitly.");
         targetTransform = targetObject.transform;
+        missingTargetLogged = false;
         return true;
     }
 
     private bool IsWithinTolerance()
     {
+        if (targetTransform == null)
+        {
+            return false;
+        }
+
         var goalPos = transform.position;
         var targetPos = targetTransform.position;
 

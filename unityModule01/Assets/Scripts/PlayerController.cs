@@ -7,12 +7,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpForce = 4f;
     [SerializeField] private float maxTiltDegrees = 10f;
     [SerializeField] private float horizontalSpeedCap = 10f;
+    [SerializeField] private float coyoteTime = 0.1f;
 
     private Rigidbody rb;
     private float moveInput;
     private bool isGrounded;
     private bool canControl;
     private Quaternion baseRotation;
+    private float coyoteTimer;
 
     private void Awake()
     {
@@ -31,6 +33,8 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        CheckFallOutOfBounds();
+
         if (!canControl)
         {
             moveInput = 0f;
@@ -50,7 +54,8 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        var moveForce = new Vector3(moveInput * moveSpeed, 0f, 0f);
+        var currentMoveSpeed = isGrounded ? moveSpeed : moveSpeed * 0.4f;
+        var moveForce = new Vector3(moveInput * currentMoveSpeed, 0f, 0f);
         rb.AddForce(moveForce, ForceMode.Force);
         ClampHorizontalSpeed();
         ApplyTilt();
@@ -65,12 +70,12 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        if (Keyboard.current.aKey.isPressed)
+        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
         {
             moveInput -= 1f;
         }
 
-        if (Keyboard.current.dKey.isPressed)
+        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
         {
             moveInput += 1f;
         }
@@ -85,7 +90,9 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        if (Keyboard.current.spaceKey.wasPressedThisFrame)
+        if ((Keyboard.current.spaceKey.wasPressedThisFrame ||
+             Keyboard.current.upArrowKey.wasPressedThisFrame) &&
+            (isGrounded || coyoteTimer > 0f))
         {
             TryJump();
         }
@@ -93,10 +100,8 @@ public class PlayerController : MonoBehaviour
 
     private void TryJump()
     {
-        if (isGrounded)
-        {
-            PerformJump();
-        }
+        PerformJump();
+        coyoteTimer = 0f;
     }
 
     private void PerformJump()
@@ -125,17 +130,31 @@ public class PlayerController : MonoBehaviour
     {
         if (!grounded)
         {
+            if (isGrounded)
+            {
+                coyoteTimer = coyoteTime;
+            }
+
             isGrounded = false;
             return;
         }
 
         foreach (var contact in collision.contacts)
         {
-            if (contact.normal.y > 0.5f && rb.linearVelocity.y <= 0.01f)
+            if (contact.normal.y > 0.4f)
             {
                 isGrounded = true;
+                coyoteTimer = coyoteTime;
                 return;
             }
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (!isGrounded && coyoteTimer > 0f)
+        {
+            coyoteTimer -= Time.deltaTime;
         }
     }
 
@@ -165,6 +184,20 @@ public class PlayerController : MonoBehaviour
         var targetRotation = baseRotation * Quaternion.Euler(0f, 0f, targetTilt);
         rb.MoveRotation(targetRotation);
         rb.angularVelocity = Vector3.zero;
+    }
+
+    private void CheckFallOutOfBounds()
+    {
+        var manager = GameManager.Instance;
+        if (manager == null)
+        {
+            return;
+        }
+
+        if (transform.position.y < -15f) //fall out threshold
+        {
+            manager.ReloadActiveScene();
+        }
     }
 
     public void SetControlState(bool active)
