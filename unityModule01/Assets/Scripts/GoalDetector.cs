@@ -5,8 +5,7 @@ public class GoalDetector : MonoBehaviour
     [SerializeField] private GameManager.ShapeId targetShape = GameManager.ShapeId.Claire;
     [SerializeField] private GameManager gameManager;
     [SerializeField] private float tolerance = 0.3f;
-
-    private Transform targetTransform;
+    [SerializeField] private Transform targetTransform;
 
     private bool lastReportedState;
     private bool hasReportedState;
@@ -49,14 +48,33 @@ public class GoalDetector : MonoBehaviour
             return true;
         }
 
-        var targetObject = GameObject.Find(targetShape.ToString());
+        var desiredName = targetShape.ToString();
+        foreach (var controller in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        {
+            if (controller.name == desiredName)
+            {
+                targetTransform = controller.transform;
+                return true;
+            }
+        }
+
+        var targetObject = GameObject.Find(desiredName);
         if (targetObject == null)
         {
             return false;
         }
 
+        var controllerOnObject = targetObject.GetComponentInParent<PlayerController>();
+        if (controllerOnObject != null)
+        {
+            targetTransform = controllerOnObject.transform;
+            return true;
+        }
+
+        // Fall back to the found transform, but log so duplicates can be spotted.
+        Debug.LogWarning($"GoalDetector on {name} is using object '{targetObject.name}' without a PlayerController. Consider assigning the transform explicitly.");
         targetTransform = targetObject.transform;
-        return targetTransform != null;
+        return true;
     }
 
     private bool IsWithinTolerance()
