@@ -17,6 +17,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string key2PlayerName = "Thomas";
     [SerializeField] private string key3PlayerName = "John";
     [SerializeField] private bool[] shapesInGoal = new bool[3];
+    [SerializeField] private GameObject levelCompleteLabel;
+    [SerializeField] private GameObject[] shapeGoalLabels = new GameObject[3];
 
     public enum ShapeId
     {
@@ -69,6 +71,8 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         SetActivePlayer(startingPlayerName);
+        UpdateLevelCompleteIndicator();
+        RefreshShapeIndicators();
     }
 
     private void Update()
@@ -185,6 +189,8 @@ public class GameManager : MonoBehaviour
         }
 
         shapesInGoal[index] = inGoal;
+        UpdateShapeIndicator(shape);
+        UpdateLevelCompleteIndicator();
     }
 
     public bool GetShapeInGoal(ShapeId shape)
@@ -197,6 +203,49 @@ public class GameManager : MonoBehaviour
         }
 
         return shapesInGoal[index];
+    }
+
+    private void RefreshShapeIndicators()
+    {
+        for (int i = 0; i < shapesInGoal.Length; i++)
+        {
+            UpdateShapeIndicator((ShapeId)i);
+        }
+    }
+
+    private void UpdateShapeIndicator(ShapeId shape)
+    {
+        var index = (int)shape;
+        if (index < 0 || index >= shapeGoalLabels.Length)
+        {
+            return;
+        }
+
+        var label = shapeGoalLabels[index];
+        if (label != null)
+        {
+            label.SetActive(shapesInGoal[index]);
+        }
+    }
+
+    private void UpdateLevelCompleteIndicator()
+    {
+        if (levelCompleteLabel == null)
+        {
+            return;
+        }
+
+        var allInGoal = true;
+        for (int i = 0; i < shapesInGoal.Length; i++)
+        {
+            if (!shapesInGoal[i])
+            {
+                allInGoal = false;
+                break;
+            }
+        }
+
+        levelCompleteLabel.SetActive(allInGoal);
     }
 
     private PlayerController ResolvePlayer(string playerName)
