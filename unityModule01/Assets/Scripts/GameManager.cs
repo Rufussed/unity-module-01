@@ -16,6 +16,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string key1PlayerName = "Claire";
     [SerializeField] private string key2PlayerName = "Thomas";
     [SerializeField] private string key3PlayerName = "John";
+    [SerializeField] private bool[] shapesInGoal = new bool[3];
+
+    public enum ShapeId
+    {
+        Claire = 0,
+        Thomas = 1,
+        John = 2
+    }
 
     private readonly Dictionary<string, PlayerController> playerLookup = new();
     private PlayerController activePlayer;
@@ -65,6 +73,12 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+        HandlePlayerSelectionInput();
+        ReportGoalStates();
+    }
+
+    private void HandlePlayerSelectionInput()
+    {
         if (Keyboard.current == null)
         {
             return;
@@ -82,6 +96,32 @@ public class GameManager : MonoBehaviour
         {
             SetActivePlayer(key3PlayerName);
         }
+    }
+
+    private float goalReportTimer;
+    private const float GoalReportInterval = 0.5f;
+
+    private void ReportGoalStates()
+    {
+        goalReportTimer += Time.deltaTime;
+        if (goalReportTimer < GoalReportInterval)
+        {
+            return;
+        }
+
+        goalReportTimer = 0f;
+
+        var statusBuilder = new System.Text.StringBuilder();
+        statusBuilder.Append("Goals: ");
+
+        for (int i = 0; i < shapesInGoal.Length; i++)
+        {
+            var shapeName = ((ShapeId)i).ToString();
+            statusBuilder.Append(shapeName);
+            statusBuilder.Append(shapesInGoal[i] ? "=IN " : "=OUT ");
+        }
+
+        Debug.Log(statusBuilder.ToString());
     }
 
     private void SetActivePlayer(string playerName)
@@ -133,6 +173,30 @@ public class GameManager : MonoBehaviour
 
         playerLookup[slot.playerName] = controller;
         controller.SetControlState(false);
+    }
+
+    public void SetShapeInGoal(ShapeId shape, bool inGoal)
+    {
+        var index = (int)shape;
+        if (index < 0 || index >= shapesInGoal.Length)
+        {
+            Debug.LogWarning($"ShapesInGoal index {index} ({shape}) is out of range.");
+            return;
+        }
+
+        shapesInGoal[index] = inGoal;
+    }
+
+    public bool GetShapeInGoal(ShapeId shape)
+    {
+        var index = (int)shape;
+        if (index < 0 || index >= shapesInGoal.Length)
+        {
+            Debug.LogWarning($"ShapesInGoal index {index} ({shape}) is out of range.");
+            return false;
+        }
+
+        return shapesInGoal[index];
     }
 
     private PlayerController ResolvePlayer(string playerName)

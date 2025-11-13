@@ -5,14 +5,12 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 10f;
     [SerializeField] private float jumpForce = 4f;
-    [SerializeField] private bool doubleJump = false;
     [SerializeField] private float maxTiltDegrees = 10f;
     [SerializeField] private float horizontalSpeedCap = 10f;
 
     private Rigidbody rb;
     private float moveInput;
     private bool isGrounded;
-    private bool canDoubleJump;
     private bool canControl;
     private Quaternion baseRotation;
 
@@ -98,12 +96,6 @@ public class PlayerController : MonoBehaviour
         if (isGrounded)
         {
             PerformJump();
-            canDoubleJump = doubleJump;
-        }
-        else if (doubleJump && canDoubleJump)
-        {
-            PerformJump();
-            canDoubleJump = false;
         }
     }
 
@@ -131,15 +123,17 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateGroundState(Collision collision, bool grounded)
     {
+        if (!grounded)
+        {
+            isGrounded = false;
+            return;
+        }
+
         foreach (var contact in collision.contacts)
         {
-            if (contact.normal.y > 0.5f)
+            if (contact.normal.y > 0.5f && rb.linearVelocity.y <= 0.01f)
             {
-                isGrounded = grounded;
-                if (grounded)
-                {
-                    canDoubleJump = doubleJump;
-                }
+                isGrounded = true;
                 return;
             }
         }
