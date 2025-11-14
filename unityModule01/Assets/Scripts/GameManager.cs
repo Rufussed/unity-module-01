@@ -268,11 +268,6 @@ public class GameManager : MonoBehaviour
 
     private void UpdateLevelCompleteIndicator() // check if all are in and turn on or off ui text
     {
-        if (headlineText == null)
-        {
-            return;
-        }
-
         var allInGoal = true;
         for (int i = 0; i < shapesInGoal.Length; i++)
         {
@@ -285,18 +280,30 @@ public class GameManager : MonoBehaviour
 
         if (allInGoal)
         {
-            headlineLocked = false;
-            headlineText.text = stageCompleteMessage;
-            headlineText.gameObject.SetActive(true);
-            CancelInvoke(nameof(LoadNextStage));
-            if (!string.IsNullOrEmpty(nextStageName))
+            if (!levelCompletionTriggered)
             {
-                Invoke(nameof(LoadNextStage), 4f);
+                levelCompletionTriggered = true;
+                headlineLocked = false;
+                if (headlineText != null)
+                {
+                    headlineText.text = stageCompleteMessage;
+                    headlineText.gameObject.SetActive(true);
+                }
+
+                CancelInvoke(nameof(LoadNextStage));
+                if (!string.IsNullOrEmpty(nextStageName))
+                {
+                    Invoke(nameof(LoadNextStage), 4f);
+                }
             }
         }
-        else if (!headlineLocked)
+        else if (!headlineLocked && !levelCompletionTriggered)
         {
-            headlineText.gameObject.SetActive(false);
+            if (headlineText != null)
+            {
+                headlineText.gameObject.SetActive(false);
+            }
+
             CancelInvoke(nameof(LoadNextStage));
         }
     }
@@ -341,6 +348,7 @@ public class GameManager : MonoBehaviour
     }
 
     private bool headlineLocked;
+    private bool levelCompletionTriggered;
     private string nextStageName;
     private string stageCompleteMessage = "Level Complete!";
 
@@ -364,6 +372,7 @@ public class GameManager : MonoBehaviour
 
         stageCompleteMessage = "Level Complete!";
         nextStageName = null;
+        levelCompletionTriggered = false;
 
         string message = null;
         switch (scene.name)
