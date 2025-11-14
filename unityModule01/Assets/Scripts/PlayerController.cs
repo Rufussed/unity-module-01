@@ -15,6 +15,8 @@ public class PlayerController : MonoBehaviour
     private bool canControl;
     private Quaternion baseRotation;
     private float coyoteTimer;
+    private Transform currentConveyor;
+    private Vector3 conveyorPreviousPosition;
 
     private void Awake()
     {
@@ -51,6 +53,7 @@ public class PlayerController : MonoBehaviour
         {
             ClampHorizontalSpeed();
             ApplyTilt();
+            FixedUpdateConveyorFollow();
             return;
         }
 
@@ -59,6 +62,7 @@ public class PlayerController : MonoBehaviour
         rb.AddForce(moveForce, ForceMode.Force);
         ClampHorizontalSpeed();
         ApplyTilt();
+        FixedUpdateConveyorFollow();
     }
 
     private void ReadMovement()
@@ -136,6 +140,7 @@ public class PlayerController : MonoBehaviour
             }
 
             isGrounded = false;
+            DetachFromConveyor();
             return;
         }
 
@@ -145,6 +150,16 @@ public class PlayerController : MonoBehaviour
             {
                 isGrounded = true;
                 coyoteTimer = coyoteTime;
+                var conveyorTransform = ResolveConveyorTransform(collision, contact);
+                if (conveyorTransform != null)
+                {
+                    AttachToConveyor(conveyorTransform);
+                }
+                else
+                {
+                    DetachFromConveyor();
+                }
+
                 return;
             }
         }
@@ -198,6 +213,59 @@ public class PlayerController : MonoBehaviour
         {
             manager.ReloadActiveScene();
         }
+    }
+
+    private void AttachToConveyor(Transform conveyorTransform)
+    {
+        if (conveyorTransform == null || currentConveyor == conveyorTransform)
+        {
+            return;
+        }
+
+        currentConveyor = conveyorTransform;
+        conveyorPreviousPosition = conveyorTransform.position;
+    }
+
+    private void DetachFromConveyor()
+    {
+        currentConveyor = null;
+    }
+
+    private Transform ResolveConveyorTransform(Collision collision, ContactPoint contact)
+    {
+        var conveyor = FindTaggedConveyor(contact.otherCollider != null ? contact.otherCollider.transform : null);
+        return conveyor != null ? conveyor : FindTaggedConveyor(collision.transform);
+    }
+
+    private Transform FindTaggedConveyor(Transform start)
+    {
+        while (start != null)
+        {
+            if (start.CompareTag("Conveyor"))
+            {
+                return start;
+            }
+
+            start = start.parent;
+        }
+
+        return null;
+    }
+
+    private void FixedUpdateConveyorFollow()
+    {
+        if (currentConveyor == null)
+        {
+            return;
+        }
+
+        var deltaX = currentConveyor.position.x - conveyorPreviousPosition.x;
+        if (!Mathf.Approximately(deltaX, 0f))
+        {
+            rb.MovePosition(rb.position + new Vector3(deltaX, 0f, 0f));
+        }
+
+        conveyorPreviousPosition = currentConveyor.position;
     }
 
     public void SetControlState(bool active)
